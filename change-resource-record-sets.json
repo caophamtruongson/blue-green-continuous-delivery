@@ -1,0 +1,18 @@
+{
+  "Comment": "Demo Blue Green CD",
+  "Changes": [
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "########_NAME_OF_RECORD_SET_########",
+        "Type": "CNAME",
+        "TTL": 60,
+        "ResourceRecords": [
+          {
+            "Value": "########_NEW_DNS_NAME_INFO_HERE_########"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,112 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "DemoBlueGreenCD"
+Parameters:
+  ImageIdParameter:
+    Type: String
+    Description: Enter ImageId.
+  InstanceTypeParameter:
+    Type: String
+    Default: t2.small
+    AllowedValues:
+      - t2.micro
+      - t2.small
+      - t2.medium
+      - t2.large
+    Description: Enter t2.micro, t2.small, t2.medium, t2.large. Default is t2.small.
+  KeyNameParameter:
+    Type: String
+    Description: Enter the name of key pairs for EC2 SSH.
+  SecurityGroupParameter:
+    Type: String
+    Description: Enter the name of security group.
+  NameTagParameter:
+    Type: String
+    Description: Enter the name tag for instance.
+  SubnetsParameter:
+    Type: CommaDelimitedList
+    Description: Enter the subnets for resource.
+  MinSizeOfASGParameter:
+    Type: String
+    Description: Enter the min size for ASG.
+  MaxSizeOfASGParameter:
+    Type: String
+    Description: Enter the max size for ASG.
+  DateTimeParameter:
+    Type: String
+    Description: Datetime.
+Resources:
+  DemoAutoScalingServerGroup:
+    Type: "AWS::AutoScaling::AutoScalingGroup"
+    Properties:
+      # AvailabilityZones:
+        # Fn::GetAZs: ""
+          # Comment: The availability zones of the specified subnets and the Auto Scaling group do not match
+      LaunchConfigurationName:
+        Ref: DemoLaunchConfig
+      MinSize:
+        Ref: MinSizeOfASGParameter
+      MaxSize:
+        Ref: MaxSizeOfASGParameter
+      LoadBalancerNames:
+        - Ref: DemoElasticLoadBalancer
+      MetricsCollection:
+        -
+          Granularity: "1Minute"
+          Metrics:
+            - "GroupMinSize"
+            - "GroupMaxSize"
+      VPCZoneIdentifier:
+        Ref: SubnetsParameter
+      Tags:
+        - Key: "Name"
+          Value:
+            Fn::Join:
+              - '-'
+              - - Ref: NameTagParameter
+                - Ref: DateTimeParameter
+          PropagateAtLaunch: true
+  DemoLaunchConfig:
+    Type: "AWS::AutoScaling::LaunchConfiguration"
+    Properties:
+      KeyName:
+        Ref: KeyNameParameter
+      ImageId:
+        Ref: ImageIdParameter
+      SecurityGroups:
+        - Ref: SecurityGroupParameter
+      InstanceType:
+        Ref: InstanceTypeParameter
+      # EbsOptimized: "true"
+        # Comment: Some instance types don't support
+  DemoElasticLoadBalancer:
+    Type: "AWS::ElasticLoadBalancing::LoadBalancer"
+    Properties:
+      CrossZone: true
+      Listeners:
+        - InstancePort: 8000
+          InstanceProtocol: HTTP
+          LoadBalancerPort: 8000
+          Protocol: HTTP
+      SecurityGroups:
+        - Ref: SecurityGroupParameter
+      # AvailabilityZones:
+        # Fn::GetAZs: ""
+          # Comment: Only one of SubnetIds or AvailabilityZones may be specified
+      LoadBalancerName:
+        Fn::Join:
+          - '-'
+          - - 'ELB'
+            - Ref: DateTimeParameter
+      Subnets:
+       Ref: SubnetsParameter
+      Tags:
+        - Key: "Name"
+          Value:
+            Fn::Join:
+              - '-'
+              - - 'elb'
+                - Ref: DateTimeParameter
+Outputs:
+  DNSNameInfo:
+    Value:
+      !GetAtt DemoElasticLoadBalancer.DNSName
