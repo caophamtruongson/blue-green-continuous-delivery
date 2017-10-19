@@ -13,9 +13,10 @@ Sample for who love「Blue Green CD」,「infras-as-code」and「immutable-infra
     * AWS::ElasticLoadBalancing::LoadBalancer
     * AWS::AutoScaling::AutoScalingGroup
     * In future
-        * SQS queue
-        * SecurityGroup
-        * etc
+        * Including: SQS queue
+        * Including: SecurityGroup
+        * Blue Green switching by「weigth」
+        * Do all thing with CI
 
 # Index
 1. [AWS console preparation](#aws-console-preparation)
@@ -24,7 +25,7 @@ Sample for who love「Blue Green CD」,「infras-as-code」and「immutable-infra
     * [Blue version](#blue-version)
     * [Green version](#green-version)
     * [Route53 Preparation](#route53-preparation)
-    * [Switching](#switching)
+    * [Switching DNS, point to「green」version](#switching-dns-point-togreenversion)
 1. [Furthermore](#furthermore)
 1. [Best practices](#best-practices)
 1. [License](#license)
@@ -33,32 +34,34 @@ Sample for who love「Blue Green CD」,「infras-as-code」and「immutable-infra
 # AWS console preparation
 1. Key pairs, please ignore if you finished at part: [Build Golden Image with packer and ansible](https://github.com/caophamtruongson/packer-ansible-cloudformation)
     * https://github.com/caophamtruongson/packer-ansible-cloudformation#aws-console-preparation
-1. Security group, , please ignore if you finished at part: [Build Golden Image with packer and ansible](https://github.com/caophamtruongson/packer-ansible-cloudformation)
+1. Security group, please ignore if you finished at part: [Build Golden Image with packer and ansible](https://github.com/caophamtruongson/packer-ansible-cloudformation)
     * https://github.com/caophamtruongson/packer-ansible-cloudformation#aws-console-preparation
 
 # Credentials preparation
-1. Create/Modify「.bash_aws」for exporting environment variables
-    * `vi ~/.bash_aws`
-        ```
-        # Please copy the content from this url first
-        # https://github.com/caophamtruongson/packer-ansible-cloudformation#credentials-preparation
-
-        # And then the new additional for this sample
-        export AWS_SUBNET="PLACE_YOUR_DEFAULT_AWS_SUBNET_HERE" # e.g: "subnet-xyz123abc"
-        export AWS_MIN_SIZE_ASG=3 # Three instances will be created as min value
-        export AWS_MAX_SIZE_ASG=5 # Five instances will be created as min value
-        ```
+1. Create/modify「.bash_aws」for exporting environment variables
+    * vi ~/.bash_aws
+        * Please copy the content from this url first
+            * https://github.com/caophamtruongson/packer-ansible-cloudformation#credentials-preparation
+        * And then the new additional for this sample
+            ```
+            export AWS_SUBNET="PLACE_YOUR_DEFAULT_AWS_SUBNET_HERE" # e.g: "subnet-xyz123abc"
+            export AWS_MIN_SIZE_ASG=3 # Three instances will be created as min value
+            export AWS_MAX_SIZE_ASG=5 # Five instances will be created as min value
+            ```
 1. Exporting environment variables by following command
     * `. ~/.bash_aws`
 
 # Running
 
 ## Blue version
-1. cd to「blue-green-continuous-delivery」
+1. Change directory to clone folder
     * `cd blue-green-continuous-delivery`
 1. Export Golden Image value
-    * `export AWS_DATETIME_PARAMETER=\`date +'%Y%m%d%H%M%S'\``
-    * `export AWS_EC2_GOLDEN_IMAGE=PLEASE_place_above_AMI_ID_here`
+    * Exporting value for「AWS_DATETIME_PARAMETER」variable
+        ```
+        export AWS_DATETIME_PARAMETER=`date +'%Y%m%d%H%M%S'`
+        ```
+    * `export AWS_EC2_GOLDEN_IMAGE=PLEASE_place_your_AMI_ID_here`
         * Because Golden Image AMI is usually changed, I'd better export it here instead of setting at「.bash_aws」
         * If you don't have any Golden Image, please refer here how to create
             * https://github.com/caophamtruongson/packer-ansible-cloudformation
@@ -83,21 +86,28 @@ Sample for who love「Blue Green CD」,「infras-as-code」and「immutable-infra
 
 ## Green version
 
-    * Creating new stack version
-        * `export AWS_DATETIME_PARAMETER=\`date +'%Y%m%d%H%M%S'\``
-        * `aws cloudformation create-stack --stack-name DemoBlueGreenCD-$AWS_DATETIME_PARAMETER --template-body file:///$PWD/cloudformation.stack.template --parameters .....same a bove.....`
 
+1. Exporting new value for AWS_DATETIME_PARAMETER
+    ```
+    export AWS_DATETIME_PARAMETER=\date +'%Y%m%d%H%M%S'``
+    ```
+1. Creating new stack again (the command is same above one)
+    ```
+    aws cloudformation create-stack --stack-name DemoBlueGreenCD-$AWS_DATETIME_PARAMETER --template-body file:///$PWD/cloudformation.stack.template --parameters .....same a bove.....
+    ```
 
 ## Route53 Preparation
-1. You are going to update your above DNS record set, so that you need to prepare config file to update new「DNSNameInfo」value for that record set. I prepared config file for you:「change-resource-record-sets.json」
-    * Step 1: Replace your record set name
-        * `sed -i -e "s/########_NAME_OF_RECORD_SET_########/your_record_set_name_here/" change-resource-record-sets.json`
-            * e.g
-                * `sed -i -e "s/########_NAME_OF_RECORD_SET_########/www.my-hostest-domain.com/" change-resource-record-sets.json`
-    * Step 2: Replace your DNSNameInfo
-        * `sed -i -e "s/########_NAME_OF_RECORD_SET_########/your_new_DNSNameInfo/" change-resource-record-sets.json`
-            * e.g
-                * `sed -i -e "s/########_NEW_DNS_NAME_INFO_HERE_########/ELB-abcxyz-........elb.amazonaws.com/" change-resource-record-sets.json`
+
+You are going to update your above DNS record set, so that you need to prepare config file to update new「DNSNameInfo」value for that record set. I prepared config file for you:「change-resource-record-sets.json」
+
+1. Replace your record set name
+    * `sed -i -e "s/########_NAME_OF_RECORD_SET_########/your_record_set_name_here/" change-resource-record-sets.json`
+        * e.g
+            * `sed -i -e "s/########_NAME_OF_RECORD_SET_########/www.my-hostest-domain.com/" change-resource-record-sets.json`
+1. Replace your DNSNameInfo
+    * `sed -i -e "s/########_NAME_OF_RECORD_SET_########/your_new_DNSNameInfo/" change-resource-record-sets.json`
+        * e.g
+            * `sed -i -e "s/########_NEW_DNS_NAME_INFO_HERE_########/ELB-abcxyz-........elb.amazonaws.com/" change-resource-record-sets.json`
 
 ## Switching DNS, point to「green」version
 
@@ -109,7 +119,7 @@ Sample for who love「Blue Green CD」,「infras-as-code」and「immutable-infra
                     * `man awk`
                     * or: https://archive.org/details/pdfy-MgN0H1joIoDVoIC7
     * For me:
-        * aws route53 change-resource-record-sets --hosted-zone-id "/hostedzone/XYZ12345XYZ" --change-batch file:///$PWD/change-resource-record-sets.json
+        * `aws route53 change-resource-record-sets --hosted-zone-id "/hostedzone/XYZ12345XYZ" --change-batch file:///$PWD/change-resource-record-sets.json`
             * Succesful output message
                 ```
                 {
@@ -141,7 +151,7 @@ Sample for who love「Blue Green CD」,「infras-as-code」and「immutable-infra
 1. Remember outputing DNSName of ELB
 1. Remember set Name tag for EC2 instances
 1. Do update stack after stack was created
-    * aws cloudformation update-stack --stack-name DemoBlueGreenCD-$AWS_DATETIME_PARAMETER --template-body file:///$PWD/cloudformation.stack.template --parameters SAME_AS_PARAMETER_WHEN_CREATING
+    * `aws cloudformation update-stack --stack-name DemoBlueGreenCD-$AWS_DATETIME_PARAMETER --template-body file:///$PWD/cloudformation.stack.template --parameters SAME_AS_PARAMETER_WHEN_CREATING`
 
 # License
 
